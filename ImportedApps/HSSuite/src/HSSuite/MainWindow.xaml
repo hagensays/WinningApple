@@ -1,0 +1,191 @@
+<Window x:Class="HSSuite.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HSSuite"
+        Width="900"
+        Height="620"
+        MinWidth="680"
+        MinHeight="440"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource HsBackgroundBrush}"
+        FontFamily="Segoe UI"
+        FontSize="13">
+    <Window.Resources>
+        <Style x:Key="SuiteAppTileStyle" TargetType="Button">
+            <Setter Property="Width" Value="360" />
+            <Setter Property="MinHeight" Value="118" />
+            <Setter Property="Margin" Value="0,0,16,16" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Background" Value="{DynamicResource HsSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource HsBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="TileBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background" Value="{DynamicResource HsAccentSoftBrush}" />
+                                <Setter TargetName="TileBorder" Property="BorderBrush" Value="{DynamicResource HsAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="TileBorder" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="92" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="34" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{DynamicResource HsHeaderBrush}">
+            <Grid Margin="24,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button Style="{StaticResource HsLogoButtonStyle}"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Cursor="Arrow">
+                    <TextBlock Text="HS" Foreground="White" FontWeight="Bold" FontSize="14"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <TextBlock x:Name="AppNameTextBlock" Foreground="White" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock x:Name="AppDescriptionTextBlock" Foreground="#B9C3D6" FontSize="12" Margin="0,4,0,0" />
+                </StackPanel>
+
+                <Border Grid.Column="2" Background="{DynamicResource HsHeaderSurfaceBrush}"
+                        CornerRadius="12" Padding="10,5" VerticalAlignment="Center">
+                    <TextBlock x:Name="VersionTextBlock" Foreground="#D9E0EC" FontSize="12" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24">
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Apps" FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource HsPrimaryTextBrush}" />
+                        <TextBlock Text="Alle HS-Anwendungen neben HSSuite werden automatisch erkannt."
+                                   Style="{StaticResource HsSecondaryTextStyle}" Margin="0,5,0,0" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Content="Neu laden"
+                            Style="{StaticResource HsSecondaryButtonStyle}"
+                            VerticalAlignment="Center"
+                            Click="RefreshButton_Click" />
+                </Grid>
+
+                <ItemsControl x:Name="AppsItemsControl">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource SuiteAppTileStyle}"
+                                    Tag="{Binding FullPath}"
+                                    Click="AppTile_Click">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="44" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Width="36" Height="36" CornerRadius="8"
+                                            Background="{DynamicResource HsAccentBrush}"
+                                            VerticalAlignment="Top">
+                                        <TextBlock Text="HS" Foreground="White" FontWeight="Bold" FontSize="13"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1">
+                                        <DockPanel LastChildFill="True">
+                                            <TextBlock Text="{Binding Version}"
+                                                       DockPanel.Dock="Right"
+                                                       Margin="12,2,0,0"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource HsMutedTextBrush}" />
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource HsPrimaryTextBrush}" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Description}"
+                                                   Style="{StaticResource HsSecondaryTextStyle}"
+                                                   Margin="0,7,0,0"
+                                                   MaxHeight="36" />
+                                        <TextBlock Text="{Binding FileName}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource HsMutedTextBrush}"
+                                                   Margin="0,9,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border x:Name="EmptyStateBorder"
+                        Style="{StaticResource HsCardStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel HorizontalAlignment="Center" Margin="24">
+                        <TextBlock Text="Keine weiteren HS-Apps gefunden."
+                                   FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource HsPrimaryTextBrush}"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Lege HSScanner.exe, HSPdf.exe oder andere HS*.exe in denselben Ordner wie HSSuite."
+                                   Style="{StaticResource HsSecondaryTextStyle}"
+                                   Margin="0,7,0,0"
+                                   TextAlignment="Center"
+                                   MaxWidth="520" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="{DynamicResource HsSurfaceBrush}"
+                BorderBrush="{DynamicResource HsBorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="24,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusTextBlock" Text="Bereit" FontSize="12"
+                           Foreground="{DynamicResource HsSecondaryTextBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="lokaler Launcher" FontSize="12"
+                           Foreground="{DynamicResource HsMutedTextBrush}" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,119 @@
+name: Release after merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  checks: read
+  pull-requests: read
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'v')
+    runs-on: windows-latest
+
+    steps:
+      - name: Validate semantic version branch
+        id: version
+        shell: pwsh
+        run: |
+          $branch = '${{ github.event.pull_request.head.ref }}'
+          if ($branch -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Merged release branch '$branch' is not vMAJOR.MINOR.PATCH."
+          }
+          "tag=$branch" >> $env:GITHUB_OUTPUT
+          "numeric=$($branch.Substring(1))" >> $env:GITHUB_OUTPUT
+
+      - name: Verify required PR CI succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $sha = '${{ github.event.pull_request.head.sha }}'
+          $payload = gh api "repos/${{ github.repository }}/commits/$sha/check-runs" | ConvertFrom-Json
+          $required = @('Safety invariants', 'Build .NET Framework 4.7.2')
+          foreach ($name in $required) {
+            $check = @($payload.check_runs | Where-Object { $_.name -eq $name } | Sort-Object completed_at -Descending)[0]
+            if (-not $check) { throw "Required CI check not found: $name" }
+            if ($check.conclusion -ne 'success') { throw "Required CI check is not green: $name ($($check.conclusion))" }
+          }
+          Write-Host 'Verified required PR CI checks are green.'
+
+      - name: Checkout merged main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Stamp executable version
+        shell: pwsh
+        run: |
+          $numeric = '${{ steps.version.outputs.numeric }}'
+          $assembly = 'src\HSScanner\Properties\AssemblyInfo.cs'
+          $content = Get-Content $assembly -Raw
+          $content = [regex]::Replace($content, 'AssemblyVersion\("[0-9.]+"\)', "AssemblyVersion(`"$numeric.0`")")
+          $content = [regex]::Replace($content, 'AssemblyFileVersion\("[0-9.]+"\)', "AssemblyFileVersion(`"$numeric.0`")")
+          Set-Content -Path $assembly -Value $content -Encoding UTF8
+
+      - name: Build release
+        shell: pwsh
+        run: msbuild HSScanner.sln /m /t:Rebuild /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          Copy-Item 'src\HSScanner\bin\Release\HSScanner.exe' "artifacts\HSScanner-$tag.exe"
+          Compress-Archive -Path "artifacts\HSScanner-$tag.exe", 'README.md' -DestinationPath "artifacts\HSScanner-$tag.zip"
+          (Get-FileHash "artifacts\HSScanner-$tag.exe" -Algorithm SHA256).Hash + "  HSScanner-$tag.exe" | Set-Content "artifacts\HSScanner-$tag.exe.sha256" -Encoding ascii
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          gh release create $tag `
+            "artifacts\HSScanner-$tag.exe" `
+            "artifacts\HSScanner-$tag.zip" `
+            "artifacts\HSScanner-$tag.exe.sha256" `
+            --target main `
+            --title "HSScanner $tag" `
+            --notes "Automated HSScanner release from merged PR #${{ github.event.pull_request.number }}. Read-only drive inventory with Excel planning export."
+
+      - name: Verify release and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $release = gh release view $tag --json tagName,assets | ConvertFrom-Json
+          if ($release.tagName -ne $tag) { throw "Release tag verification failed." }
+          $names = @($release.assets | ForEach-Object { $_.name })
+          $required = @("HSScanner-$tag.exe", "HSScanner-$tag.zip", "HSScanner-$tag.exe.sha256")
+          foreach ($asset in $required) {
+            if ($names -notcontains $asset) { throw "Release asset missing: $asset" }
+          }
+          Write-Host "Verified release $tag with all expected assets."
+
+      - name: Delete version branch and verify cleanup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $branch = '${{ github.event.pull_request.head.ref }}'
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" 2>$null
+          $deleteExit = $LASTEXITCODE
+          $null = gh api "repos/${{ github.repository }}/git/ref/heads/$branch" 2>$null
+          $checkExit = $LASTEXITCODE
+          if ($checkExit -eq 0) { throw "Version branch still exists after cleanup: $branch" }
+          $global:LASTEXITCODE = 0
+          Write-Host "Verified version branch cleanup: $branch (delete exit: $deleteExit)"
