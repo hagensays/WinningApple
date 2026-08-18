@@ -1,0 +1,12 @@
+include_rules = [
+  '+third_party/libjpeg/jerror.h',
+  '+third_party/libjpeg/jpeglib.h',
+  '+third_party/libjpeg_turbo/jerror.h',
+  '+third_party/libjpeg_turbo/jpeglib.h',
+]
+
+specific_include_rules = {
+  "skia_scanline_decoder\.(cpp|h)": [
+    '+third_party/skia/include',
+  ],
+}
